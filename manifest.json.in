@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "id": "@MOD_ID@",
+  "name": "@MOD_NAME@",
+  "version": "@MOD_VERSION@",
+  "authors": ["@MOD_AUTHOR@"],
+  "description": "No-shader fake bloom prototype for LeviLauncher.",
+  "library": "lib@MOD_LIBRARY_NAME@.so",
+  "minecraft_versions": @MOD_MINECRAFT_VERSIONS@
+}
