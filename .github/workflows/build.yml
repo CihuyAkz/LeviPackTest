@@ -6,31 +6,75 @@ on:
 
 jobs:
   build:
+    name: Build Android SO
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v6
 
-      - name: Build
-        uses: android-actions/setup-android@v3
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      - name: Install NDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android tools
         run: |
-          sdkmanager "platform-tools" "cmake;3.22.1" "ndk;26.3.11579264"
+          yes | sdkmanager --licenses || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "cmake;3.22.1" \
+            "ndk;26.3.11579264"
 
-      - name: CMake
+      - name: Show tool versions
+        run: |
+          cmake --version
+          $ANDROID_HOME/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --version
+
+      - name: Configure CMake
         run: |
           cmake -B build \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/26.3.11579264/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/26.3.11579264/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-24
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release
+        run: |
+          cmake --build build --config Release --parallel 2
 
-      - name: Upload SO
+      - name: Find generated SO
+        run: |
+          echo "=== Generated .so files ==="
+          find build -type f -name "*.so" -print
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+
+          find build -type f -name "*.so" -exec cp {} artifact/ \;
+
+          if [ -f manifest.json ]; then
+            cp manifest.json artifact/
+          fi
+
+          if [ -d config ]; then
+            cp -r config artifact/
+          fi
+
+          cd artifact
+          zip -r ../LeviBloom-build.zip .
+
+      - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: LeviBloom
-          path: build/**/*.so
+          name: LeviBloom-build
+          path: |
+            artifact/*
+            LeviBloom-build.zip
